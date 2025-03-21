@@ -2,11 +2,16 @@ package main
 
 import (
 	// "bytes"
+	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"math"
+	"net/http"
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/klauspost/reedsolomon"
@@ -39,9 +44,12 @@ func processPayload(payload []byte) ([][]byte, error) {
 	enc, _ := reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS)
 	data := make([][]byte, TOTAL_SHARDS)
 
-	chunkSize := len(payload) / NUMBER_OF_DATA_SHARDS
-
+	chunkSizeFloat := float64(len(payload)) / float64(NUMBER_OF_DATA_SHARDS)
+	chunkSize := int(math.Ceil(chunkSizeFloat))
+	fmt.Println("Payload Size: ", len(payload))
+	fmt.Println("Chunk size: ", chunkSize)
 	// Create all shards, size them at chunkSize each
+
 	for i := range TOTAL_SHARDS {
 		data[i] = make([]byte, chunkSize)
 	}
@@ -52,6 +60,8 @@ func processPayload(payload []byte) ([][]byte, error) {
 	printData(data)
 
 	err := enc.Encode(data)
+
+	fmt.Println("Processing payload: ", err)
 	return data, err
 }
 
@@ -60,12 +70,12 @@ var nodeIpMap map[int]string
 
 func loadEnv() {
 	currentNodeIp = os.Getenv("CURRENT_NODE_IP")
-	ALL_NODE_IPS := os.Getenv("ALL_NODE_IPS")
+	allNodeIps := os.Getenv("ALL_NODE_IPS")
 
-	if len(ALL_NODE_IPS) == 0 || len(currentNodeIp) == 0 {
+	if len(allNodeIps) == 0 || len(currentNodeIp) == 0 {
 		panic("Oh no we are doomed!")
 	}
-	nodeIps := strings.Split(ALL_NODE_IPS, ",")
+	nodeIps := strings.Split(allNodeIps, ",")
 	nodeIpMap = make(map[int]string)
 	for index, ip := range nodeIps {
 		nodeIpMap[index] = ip
@@ -74,6 +84,8 @@ func loadEnv() {
 
 func main() {
 	loadEnv()
+	portPtr := flag.String("port", "8000", "send port number")
+	readFlags(portPtr)
 	app := fiber.New()
 
 	// // // Define a route for the Hello World message
@@ -92,7 +104,7 @@ func main() {
 		err := processUpdateRequest(locationId, payload)
 
 		if err != nil {
-			return c.SendStatus(500)
+			return c.Status(500).SendString(err.Error())
 		}
 
 		return c.SendStatus(fiber.StatusCreated)
@@ -111,22 +123,25 @@ func main() {
 
 		return c.SendStatus(fiber.StatusCreated)
 	})
+	var port = ":" + *portPtr
+	app.Listen(port)
 }
 
 func processUpdateRequest(locationId string, payload []byte) error {
 	encodedPayload, err := processPayload(payload)
 
-	if err != nil {
-		return err
-	}
-
-	yourShare, err := replicateData(encodedPayload)
 
 	if err != nil {
 		return err
 	}
 
-	updateDataStore(locationId, yourShare)	
+	yourShare, err := replicateData(locationId, encodedPayload)
+
+	if err != nil {
+		return err
+	}
+
+	updateDataStore(locationId, yourShare)
 
 	return nil
 }
@@ -140,25 +155,40 @@ func updateDataStore(locationId string, dataShard []byte) {
 	}
 }
 
-func makeRequest(c *fiber.Ctx, url string) (error) {
-	agent := fiber.Post(url)
-	agent.Body(c.Body()) // set body received by request
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"errs": errs,
-		})
+func makePutRequest(url string, payload []byte) error {
+	fmt.Println("Making request to: ", url)
+	client := http.Client{
+		Timeout: 3 * time.Second,
+	}
+	byteBuffer := bytes.NewBuffer(payload)
+	request, err := http.NewRequest(
+		http.MethodPut,
+		url,
+		byteBuffer,
+	)
+	if err != nil {
+		return err
 	}
 
-    // pass status code and body received by the proxy
-	return c.Status(statusCode).Send(body)
+	_, err = client.Do(request)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func replicateData(encodedPayload [][]byte) ([]byte, error) {
+func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
+	fmt.Println("replicating Data!")
 	var myShare []byte
 	for index, value := range encodedPayload {
 		nodeIp := nodeIpMap[index]
 		if nodeIp != currentNodeIp {
+			err := makePutRequest(constructUrl(nodeIp, locationId), value)
+			if err != nil {
+				fmt.Println("Something went wrong with post requests: ", err)
+			}
 		} else {
 			myShare = value
 		}
@@ -169,7 +199,7 @@ func replicateData(encodedPayload [][]byte) ([]byte, error) {
 func populateDataChunks(out []byte, chunkSize int, data [][]byte) {
 	var index = 0
 	for value := range slices.Chunk(out, chunkSize) {
-		data[index] = value
+		data[index] = padRightWithZeros(value, chunkSize)
 		index++
 	}
 }
@@ -191,4 +221,13 @@ func reconstruct(data [][]byte) Payload {
 	json.Unmarshal(byteArr, &payload)
 
 	return payload
+}
+
+func constructUrl(nodeIp string, locationId string) string {
+	return nodeIp + "/internal/" + locationId
+}
+
+func readFlags(portPtr *string) {
+	flag.Parse()
+	fmt.Println("port:", *portPtr)
 }
