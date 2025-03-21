@@ -29,8 +29,6 @@ type Payload struct {
 	Radiation_level  float32
 }
 
-var payload = Payload{Id: "id1", Seismic_activity: 12.3, Temperature_c: 23.4, Radiation_level: 45.3}
-
 var dataStore map[string]LocationData = make(map[string]LocationData)
 
 type LocationData struct {
@@ -82,54 +80,20 @@ func loadEnv() {
 	}
 }
 
+
 func main() {
 	loadEnv()
 	portPtr := flag.String("port", "8000", "send port number")
 	readFlags(portPtr)
-	app := fiber.New()
-
-	// // // Define a route for the Hello World message
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendStatus(200)
-	})
-
-	app.Put("/:locationId", func(c *fiber.Ctx) error {
-		locationId, ok := c.AllParams()["locationId"]
-		if !ok {
-			return c.SendStatus(fiber.ErrBadRequest.Code)
-		}
-
-		payload := c.BodyRaw()
-
-		err := processUpdateRequest(locationId, payload)
-
-		if err != nil {
-			return c.Status(500).SendString(err.Error())
-		}
-
-		return c.SendStatus(fiber.StatusCreated)
-	})
-
-	app.Put("/internal/:locationId", func(c *fiber.Ctx) error {
-		locationId, ok := c.AllParams()["locationId"]
-
-		if !ok {
-			return c.SendStatus(fiber.ErrBadRequest.Code)
-		}
-
-		payload := c.BodyRaw()
-
-		updateDataStore(locationId, payload)
-
-		return c.SendStatus(fiber.StatusCreated)
-	})
 	var port = ":" + *portPtr
+
+	app := fiber.New()
+	setupRoutes(app)
 	app.Listen(port)
 }
 
 func processUpdateRequest(locationId string, payload []byte) error {
 	encodedPayload, err := processPayload(payload)
-
 
 	if err != nil {
 		return err
