@@ -23,10 +23,10 @@ const TOTAL_SHARDS = NUMBER_OF_DATA_SHARDS + NUMBER_OF_PARITY_SHARDS
 const TOTAL_NODES = TOTAL_SHARDS
 
 type Payload struct {
-	Id               string
-	Seismic_activity float32
-	Temperature_c    float32
-	Radiation_level  float32
+	Id               string `json:"id"`
+	Seismic_activity float32 `json:"seismic_activity"`
+	Temperature_c    float32 `json:"temperature_c"`
+	Radiation_level  float32 `json:"radiation_level"`
 }
 
 var dataStore map[string]LocationData = make(map[string]LocationData)
@@ -39,6 +39,7 @@ type LocationData struct {
 // 7,3
 // Note that number of parity shards will give you maximum tolerated failures, so here 3 failures is the maximum tolerated.
 func processPayload(payload []byte) ([][]byte, error) {
+
 	enc, _ := reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS)
 	data := make([][]byte, TOTAL_SHARDS)
 
