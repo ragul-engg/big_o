@@ -23,7 +23,7 @@ const TOTAL_SHARDS = NUMBER_OF_DATA_SHARDS + NUMBER_OF_PARITY_SHARDS
 const TOTAL_NODES = TOTAL_SHARDS
 
 type Payload struct {
-	Id               string `json:"id"`
+	Id               string  `json:"id"`
 	Seismic_activity float32 `json:"seismic_activity"`
 	Temperature_c    float32 `json:"temperature_c"`
 	Radiation_level  float32 `json:"radiation_level"`
@@ -80,7 +80,6 @@ func loadEnv() {
 		nodeIpMap[index] = ip
 	}
 }
-
 
 func main() {
 	loadEnv()

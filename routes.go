@@ -1,6 +1,6 @@
 package main
 
-import	"github.com/gofiber/fiber/v2"
+import "github.com/gofiber/fiber/v2"
 
 func setupRoutes(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
