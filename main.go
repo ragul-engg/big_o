@@ -1,11 +1,12 @@
 package main
 
 import (
-	// "bytes"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"os"
@@ -22,19 +23,23 @@ const NUMBER_OF_PARITY_SHARDS = 3
 const TOTAL_SHARDS = NUMBER_OF_DATA_SHARDS + NUMBER_OF_PARITY_SHARDS
 const TOTAL_NODES = TOTAL_SHARDS
 
+const LOCATION_ID_NOT_FOUND = "location id not found"
+const COULD_NOT_RECONSTRUCT_DATA = "could not reconstruct data"
+
 type Payload struct {
 	Id               string  `json:"id"`
 	Seismic_activity float32 `json:"seismic_activity"`
 	Temperature_c    float32 `json:"temperature_c"`
 	Radiation_level  float32 `json:"radiation_level"`
 }
-
-var dataStore map[string]LocationData = make(map[string]LocationData)
-
 type LocationData struct {
 	data              []byte
 	modificationCount int
 }
+
+var dataStore map[string]LocationData = make(map[string]LocationData)
+var currentNodeIp string
+var nodeIpMap map[int]string
 
 // 7,3
 // Note that number of parity shards will give you maximum tolerated failures, so here 3 failures is the maximum tolerated.
@@ -64,12 +69,12 @@ func processPayload(payload []byte) ([][]byte, error) {
 	return data, err
 }
 
-var currentNodeIp string
-var nodeIpMap map[int]string
-
 func loadEnv() {
 	currentNodeIp = os.Getenv("CURRENT_NODE_IP")
 	allNodeIps := os.Getenv("ALL_NODE_IPS")
+
+	fmt.Println(currentNodeIp)
+	fmt.Println(allNodeIps)
 
 	if len(allNodeIps) == 0 || len(currentNodeIp) == 0 {
 		panic("Oh no we are doomed!")
@@ -149,7 +154,7 @@ func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
 	for index, value := range encodedPayload {
 		nodeIp := nodeIpMap[index]
 		if nodeIp != currentNodeIp {
-			err := makePutRequest(constructUrl(nodeIp, locationId), value)
+			err := makePutRequest(constructInternalUrl(nodeIp, locationId), value)
 			if err != nil {
 				fmt.Println("Something went wrong with post requests: ", err)
 			}
@@ -174,6 +179,82 @@ func printData(data [][]byte) {
 	}
 }
 
+type ResponsePayload struct {
+	Payload
+	ModificationCount int `json:"modification_count"`
+}
+
+func processGetRequest(locationId string) (ResponsePayload, error) {
+	enc, _ := reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS)
+	data := make([][]byte, TOTAL_SHARDS)
+	myLocationData, ok := dataStore[locationId]
+
+	if !ok {
+		return ResponsePayload{}, errors.New(LOCATION_ID_NOT_FOUND)
+	}
+
+	chunkSize := len(myLocationData.data)
+
+	// chunkSizeFloat := float64(len(payload)) / float64(NUMBER_OF_DATA_SHARDS)
+	// chunkSize := int(math.Ceil(chunkSizeFloat))
+	// fmt.Println("Payload Size: ", len(payload))
+	// fmt.Println("Chunk size: ", chunkSize)
+	// Create all shards, size them at chunkSize each
+
+	for i := range TOTAL_SHARDS {
+		data[i] = make([]byte, chunkSize)
+	}
+
+	getAllShards(data, locationId, chunkSize)
+
+	err := enc.Reconstruct(data)
+	fmt.Println("Reconstructed data with encoder: ", data)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return ResponsePayload{}, errors.New(COULD_NOT_RECONSTRUCT_DATA)
+	}
+
+	reconstructedData := reconstruct(data)
+	fmt.Println("Processing payload: ", reconstructedData, "error:", err)
+	return ResponsePayload{Payload: reconstructedData, ModificationCount: myLocationData.modificationCount}, nil
+}
+
+func getAllShards(data [][]byte, locationId string, chunkSize int) {
+	fmt.Println("Getting all Data!")
+	for index, nodeIp := range nodeIpMap {
+		internalUrl := constructInternalUrl(nodeIp, locationId)
+		fmt.Println("running for", nodeIp, "index", index, "url", internalUrl)
+		if nodeIp != currentNodeIp {
+			res, err := makeGetRequest(internalUrl)
+			if err != nil {
+				fmt.Println("Something went wrong with Get requests: ", err)
+			}
+			data[index] = padRightWithZeros(res, chunkSize)
+		} else {
+			data[index] = padRightWithZeros(dataStore[locationId].data, chunkSize)
+		}
+	}
+	printData(data)
+}
+
+func makeGetRequest(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
+}
+
 func reconstruct(data [][]byte) Payload {
 	var payload Payload
 	var byteArr []byte
@@ -182,13 +263,13 @@ func reconstruct(data [][]byte) Payload {
 		byteArr = append(byteArr, value...)
 	}
 
-	json.Unmarshal(byteArr, &payload)
+	fmt.Println(string(byteArr))
+	
+	err := json.Unmarshal(byteArr, &payload)
+
+	fmt.Println("Error while unmarshalling", err)
 
 	return payload
-}
-
-func constructUrl(nodeIp string, locationId string) string {
-	return nodeIp + "/internal/" + locationId
 }
 
 func readFlags(portPtr *string) {
