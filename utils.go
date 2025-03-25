@@ -15,3 +15,7 @@ func padRightWithZeros(arr []byte, length int) []byte {
 
 	return arr
 }
+
+func constructInternalUrl(nodeIp string, locationId string) string {
+	return nodeIp + "/internal/" + locationId
+}
