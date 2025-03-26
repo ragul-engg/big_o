@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -13,6 +14,7 @@ func setupRoutes(app *fiber.App) {
 	})
 
 	app.Put("/:locationId", func(c *fiber.Ctx) error {
+		log.Println("PUT Recieved: ", dataStore)
 		locationId, ok := c.AllParams()["locationId"]
 		if !ok {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
@@ -25,7 +27,7 @@ func setupRoutes(app *fiber.App) {
 		if err != nil {
 			return c.Status(500).SendString(err.Error())
 		}
-
+		log.Println("PUT Ended: ", dataStore)
 		return c.SendStatus(fiber.StatusCreated)
 	})
 
@@ -37,7 +39,7 @@ func setupRoutes(app *fiber.App) {
 		}
 
 		payload := c.BodyRaw()
-		fmt.Println("Got internal call to replicate data: ",payload)
+		fmt.Println("Got internal call to replicate data: ", payload)
 
 		updateDataStore(locationId, payload)
 
@@ -46,13 +48,14 @@ func setupRoutes(app *fiber.App) {
 
 	app.Get("/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
+		log.Println("Get Started for: ", locationId, "Data Store: ", dataStore)
 
 		if locationId == "" {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
 		}
 
 		response, err := processGetRequest(locationId)
-
+		log.Println("Get location errors, response :", response, err)
 		if err != nil {
 			switch err.Error() {
 			case LOCATION_ID_NOT_FOUND:
@@ -71,10 +74,10 @@ func setupRoutes(app *fiber.App) {
 		if err != nil {
 			return c.Status(500).SendString(err.Error())
 		}
-
+		log.Println("Get Ended for: ", locationId, "Data Store: ", dataStore)
 		return c.Status(200).Send(body)
 	})
-	
+
 	app.Get("/internal/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
 		fmt.Println("Got internal call to get data!")

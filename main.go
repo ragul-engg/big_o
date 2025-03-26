@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"os"
@@ -18,9 +19,9 @@ import (
 	"github.com/klauspost/reedsolomon"
 )
 
-const NUMBER_OF_DATA_SHARDS = 4
-const NUMBER_OF_PARITY_SHARDS = 3
-const TOTAL_SHARDS = NUMBER_OF_DATA_SHARDS + NUMBER_OF_PARITY_SHARDS
+const NUMBER_OF_DATA_SHARDS int = 4
+const NUMBER_OF_PARITY_SHARDS int = 3
+const TOTAL_SHARDS int = NUMBER_OF_DATA_SHARDS + NUMBER_OF_PARITY_SHARDS
 const TOTAL_NODES = TOTAL_SHARDS
 
 const LOCATION_ID_NOT_FOUND = "location id not found"
@@ -84,6 +85,7 @@ func loadEnv() {
 	for index, ip := range nodeIps {
 		nodeIpMap[index] = ip
 	}
+	log.Println("loading with current ip and node ips", currentNodeIp, nodeIps)
 }
 
 func main() {
@@ -92,7 +94,7 @@ func main() {
 	readFlags(portPtr)
 	var port = ":" + *portPtr
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{Immutable: true})
 	setupRoutes(app)
 	app.Listen(port)
 }
@@ -159,6 +161,7 @@ func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
 				fmt.Println("Something went wrong with post requests: ", err)
 			}
 		} else {
+			log.Println("Taking my share: ", nodeIp, value)
 			myShare = value
 		}
 	}
@@ -186,6 +189,7 @@ type ResponsePayload struct {
 
 func processGetRequest(locationId string) (ResponsePayload, error) {
 	enc, _ := reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS)
+
 	data := make([][]byte, TOTAL_SHARDS)
 	myLocationData, ok := dataStore[locationId]
 
@@ -204,7 +208,7 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 	for i := range TOTAL_SHARDS {
 		data[i] = make([]byte, chunkSize)
 	}
-
+	log.Println("Empty Data set : ", data)
 	getAllShards(data, locationId, chunkSize)
 
 	err := enc.Reconstruct(data)
@@ -233,6 +237,7 @@ func getAllShards(data [][]byte, locationId string, chunkSize int) {
 			data[index] = padRightWithZeros(res, chunkSize)
 		} else {
 			data[index] = padRightWithZeros(dataStore[locationId].data, chunkSize)
+			log.Println("padding my share: ", data[index])
 		}
 	}
 	printData(data)
@@ -263,9 +268,10 @@ func reconstruct(data [][]byte) Payload {
 		byteArr = append(byteArr, value...)
 	}
 
-	fmt.Println(string(byteArr))
-	
-	err := json.Unmarshal(byteArr, &payload)
+	trimmedByteArr := removeTrailingZeros(byteArr)
+	// xxxx := [...]byte{123, 10, 32, 32, 34, 105, 100, 34, 58, 32, 34, 101, 56, 100, 56, 102, 56, 51, 98, 45, 57, 49, 52, 55, 45, 52, 105, 115, 109, 105, 99, 95, 97, 99, 116, 105, 118, 105, 116, 121, 34, 58, 32, 52, 46, 56, 44, 10, 32, 32, 34, 116, 101, 109, 112, 101, 114, 97, 116, 117, 114, 101, 95, 99, 34, 58, 32, 53, 48, 46, 50, 44, 10, 32, 32, 34, 114, 97, 100, 105, 97, 116, 105, 111, 110, 95, 108, 101, 118, 101, 108, 34, 58, 32, 50, 49, 53, 46, 51, 10, 125, 10, 0, 0}
+	// fmt.Println(string(xxxx[:]))
+	err := json.Unmarshal(trimmedByteArr, &payload)
 
 	fmt.Println("Error while unmarshalling", err)
 
