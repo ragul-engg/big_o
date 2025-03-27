@@ -9,6 +9,10 @@ services:
 
     ports:
       - "8001:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1gb
   app-2:
     build:
       context: .
@@ -19,6 +23,10 @@ services:
 
     ports:
       - "8002:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1gb
 
   app-3:
     build:
@@ -30,6 +38,10 @@ services:
 
     ports:
       - "8003:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1gb
   app-4:
     build:
       context: .
@@ -40,6 +52,10 @@ services:
 
     ports:
       - "8004:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1gb
   app-5:
     build:
       context: .
@@ -50,6 +66,10 @@ services:
 
     ports:
       - "8005:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1gb
 
   app-6:
     build:
@@ -61,6 +81,10 @@ services:
 
     ports:
       - "8006:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1gb
 
   app-7:
     build:
@@ -71,4 +95,9 @@ services:
       - CURRENT_NODE_IP=app-7
 
     ports:
-      - "8007:8000"
+    - "8007:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1gb
+          
