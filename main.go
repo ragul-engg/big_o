@@ -26,7 +26,7 @@ const TOTAL_NODES = TOTAL_SHARDS
 
 const LOCATION_ID_NOT_FOUND = "location id not found"
 const COULD_NOT_RECONSTRUCT_DATA = "could not reconstruct data"
-
+const MEMORY_FULL = "Memory is full."
 type Payload struct {
 	Id               string  `json:"id"`
 	Seismic_activity float32 `json:"seismic_activity"`
@@ -45,14 +45,15 @@ var nodeIpMap map[int]string
 // 7,3
 // Note that number of parity shards will give you maximum tolerated failures, so here 3 failures is the maximum tolerated.
 func processPayload(payload []byte) ([][]byte, error) {
+	// if(len(dataStore) > 100) {return nil, errors.New(MEMORY_FULL)}
 
 	enc, _ := reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS)
 	data := make([][]byte, TOTAL_SHARDS)
 
 	chunkSizeFloat := float64(len(payload)) / float64(NUMBER_OF_DATA_SHARDS)
 	chunkSize := int(math.Ceil(chunkSizeFloat))
-	fmt.Println("Payload Size: ", len(payload))
-	fmt.Println("Chunk size: ", chunkSize)
+	// fmt.Println("Payload Size: ", len(payload))
+	// fmt.Println("Chunk size: ", chunkSize)
 	// Create all shards, size them at chunkSize each
 
 	for i := range TOTAL_SHARDS {
@@ -61,12 +62,12 @@ func processPayload(payload []byte) ([][]byte, error) {
 
 	populateDataChunks(payload, chunkSize, data)
 
-	fmt.Println("***************** Initial Data")
-	printData(data)
+	// fmt.Println("***************** Initial Data")
+	// printData(data)
 
 	err := enc.Encode(data)
 
-	fmt.Println("Processing payload: ", err)
+	// fmt.Println("Processing payload: ", err)
 	return data, err
 }
 
@@ -74,8 +75,8 @@ func loadEnv() {
 	currentNodeIp = os.Getenv("CURRENT_NODE_IP")
 	allNodeIps := os.Getenv("ALL_NODE_IPS")
 
-	fmt.Println(currentNodeIp)
-	fmt.Println(allNodeIps)
+	// fmt.Println(currentNodeIp)
+	// fmt.Println(allNodeIps)
 
 	if len(allNodeIps) == 0 || len(currentNodeIp) == 0 {
 		panic("Oh no we are doomed!")
@@ -151,7 +152,7 @@ func makePutRequest(url string, payload []byte) error {
 }
 
 func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
-	fmt.Println("replicating Data!")
+	// fmt.Println("replicating Data!")
 	var myShare []byte
 	for index, value := range encodedPayload {
 		nodeIp := nodeIpMap[index]
@@ -161,7 +162,7 @@ func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
 				fmt.Println("Something went wrong with post requests: ", err)
 			}
 		} else {
-			log.Println("Taking my share: ", nodeIp, value)
+			log.Println("Taking my share: ", nodeIp)
 			myShare = value
 		}
 	}
@@ -220,7 +221,7 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 	}
 
 	reconstructedData := reconstruct(data)
-	fmt.Println("Processing payload: ", reconstructedData, "error:", err)
+	// fmt.Println("Processing payload: ", reconstructedData, "error:", err)
 	return ResponsePayload{Payload: reconstructedData, ModificationCount: myLocationData.modificationCount}, nil
 }
 
@@ -233,14 +234,16 @@ func getAllShards(data [][]byte, locationId string, chunkSize int) {
 			res, err := makeGetRequest(internalUrl)
 			if err != nil {
 				fmt.Println("Something went wrong with Get requests: ", err)
+				data[index] = nil 
+			} else {
+				data[index] = padRightWithZeros(res, chunkSize)
 			}
-			data[index] = padRightWithZeros(res, chunkSize)
 		} else {
 			data[index] = padRightWithZeros(dataStore[locationId].data, chunkSize)
 			log.Println("padding my share: ", data[index])
 		}
 	}
-	printData(data)
+	// printData(data)
 }
 
 func makeGetRequest(url string) ([]byte, error) {
@@ -269,8 +272,6 @@ func reconstruct(data [][]byte) Payload {
 	}
 
 	trimmedByteArr := removeTrailingZeros(byteArr)
-	// xxxx := [...]byte{123, 10, 32, 32, 34, 105, 100, 34, 58, 32, 34, 101, 56, 100, 56, 102, 56, 51, 98, 45, 57, 49, 52, 55, 45, 52, 105, 115, 109, 105, 99, 95, 97, 99, 116, 105, 118, 105, 116, 121, 34, 58, 32, 52, 46, 56, 44, 10, 32, 32, 34, 116, 101, 109, 112, 101, 114, 97, 116, 117, 114, 101, 95, 99, 34, 58, 32, 53, 48, 46, 50, 44, 10, 32, 32, 34, 114, 97, 100, 105, 97, 116, 105, 111, 110, 95, 108, 101, 118, 101, 108, 34, 58, 32, 50, 49, 53, 46, 51, 10, 125, 10, 0, 0}
-	// fmt.Println(string(xxxx[:]))
 	err := json.Unmarshal(trimmedByteArr, &payload)
 
 	fmt.Println("Error while unmarshalling", err)

@@ -25,8 +25,14 @@ func setupRoutes(app *fiber.App) {
 		err := processUpdateRequest(locationId, payload)
 
 		if err != nil {
-			return c.Status(500).SendString(err.Error())
+			switch err.Error() {
+			case MEMORY_FULL:
+				return c.Status(507).SendString(err.Error())
+			default:
+				return c.Status(500).SendString(err.Error())
+			}
 		}
+
 		log.Println("PUT Ended: ", dataStore)
 		return c.SendStatus(fiber.StatusCreated)
 	})
