@@ -26,7 +26,11 @@ const TOTAL_NODES = TOTAL_SHARDS
 
 const LOCATION_ID_NOT_FOUND = "location id not found"
 const COULD_NOT_RECONSTRUCT_DATA = "could not reconstruct data"
-const MEMORY_FULL = "Memory is full."
+const MEMORY_FULL = "memory is full."
+
+var portPtr = flag.String("port", "8000", "send port number")
+var updateChannel = make(chan UpdateChannelPayload)
+
 type Payload struct {
 	Id               string  `json:"id"`
 	Seismic_activity float32 `json:"seismic_activity"`
@@ -91,16 +95,19 @@ func loadEnv() {
 
 func main() {
 	loadEnv()
-	portPtr := flag.String("port", "8000", "send port number")
+	go dataStoreWriter()
 	readFlags(portPtr)
 	var port = ":" + *portPtr
 
-	app := fiber.New(fiber.Config{Immutable: true})
+	app := fiber.New(fiberConfig)
 	setupRoutes(app)
 	app.Listen(port)
 }
 
 func processUpdateRequest(locationId string, payload []byte) error {
+	if !allowWrites() {
+		return errors.New(MEMORY_FULL)
+	}
 	encodedPayload, err := processPayload(payload)
 
 	if err != nil {
@@ -112,19 +119,11 @@ func processUpdateRequest(locationId string, payload []byte) error {
 	if err != nil {
 		return err
 	}
-
-	updateDataStore(locationId, yourShare)
+	// do go routine that puts into a channel to update data store, channel takes in update payload
+	updateChannel <- UpdateChannelPayload{locationId: locationId, encodedPayload: yourShare}
+	// updateDataStore(locationId, yourShare)
 
 	return nil
-}
-
-func updateDataStore(locationId string, dataShard []byte) {
-	existingValue, exists := dataStore[locationId]
-	if exists {
-		dataStore[locationId] = LocationData{data: dataShard, modificationCount: existingValue.modificationCount + 1}
-	} else {
-		dataStore[locationId] = LocationData{data: dataShard, modificationCount: 1}
-	}
 }
 
 func makePutRequest(url string, payload []byte) error {
@@ -152,7 +151,6 @@ func makePutRequest(url string, payload []byte) error {
 }
 
 func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
-	// fmt.Println("replicating Data!")
 	var myShare []byte
 	for index, value := range encodedPayload {
 		nodeIp := nodeIpMap[index]
@@ -174,12 +172,6 @@ func populateDataChunks(out []byte, chunkSize int, data [][]byte) {
 	for value := range slices.Chunk(out, chunkSize) {
 		data[index] = padRightWithZeros(value, chunkSize)
 		index++
-	}
-}
-
-func printData(data [][]byte) {
-	for i, j := range data[:TOTAL_SHARDS] {
-		fmt.Println("Index ", i, " Data", j)
 	}
 }
 
@@ -209,11 +201,11 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 	for i := range TOTAL_SHARDS {
 		data[i] = make([]byte, chunkSize)
 	}
-	log.Println("Empty Data set : ", data)
+	// log.Println("Empty Data set : ", data)
 	getAllShards(data, locationId, chunkSize)
 
 	err := enc.Reconstruct(data)
-	fmt.Println("Reconstructed data with encoder: ", data)
+	// fmt.Println("Reconstructed data with encoder: ", data)
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -234,13 +226,13 @@ func getAllShards(data [][]byte, locationId string, chunkSize int) {
 			res, err := makeGetRequest(internalUrl)
 			if err != nil {
 				fmt.Println("Something went wrong with Get requests: ", err)
-				data[index] = nil 
+				data[index] = nil
 			} else {
 				data[index] = padRightWithZeros(res, chunkSize)
 			}
 		} else {
 			data[index] = padRightWithZeros(dataStore[locationId].data, chunkSize)
-			log.Println("padding my share: ", data[index])
+			// log.Println("padding my share: ", data[index])
 		}
 	}
 	// printData(data)

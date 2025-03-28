@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -14,8 +13,8 @@ func setupRoutes(app *fiber.App) {
 	})
 
 	app.Put("/:locationId", func(c *fiber.Ctx) error {
-		log.Println("PUT Recieved: ", dataStore)
 		locationId, ok := c.AllParams()["locationId"]
+		log.Println("PUT Recieved: ", locationId)
 		if !ok {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
 		}
@@ -33,28 +32,30 @@ func setupRoutes(app *fiber.App) {
 			}
 		}
 
-		log.Println("PUT Ended: ", dataStore)
+		log.Println("PUT Ended: ", locationId)
 		return c.SendStatus(fiber.StatusCreated)
 	})
 
 	app.Put("/internal/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
-
+		log.Println("Internal PUT Recieved: ", locationId)
 		if locationId == "" {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
 		}
 
 		payload := c.BodyRaw()
-		fmt.Println("Got internal call to replicate data: ", payload)
+		// fmt.Println("Got internal call to replicate data: ", payload)
 
-		updateDataStore(locationId, payload)
+		updateChannel <- UpdateChannelPayload{locationId: locationId, encodedPayload: payload}
+		// updateDataStore(locationId, payload)
 
+		log.Println("Internal PUT Ended: ", locationId)
 		return c.SendStatus(fiber.StatusCreated)
 	})
 
 	app.Get("/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
-		log.Println("Get Started for: ", locationId, "Data Store: ", dataStore)
+		// log.Println("Get Started for: ", locationId, "Data Store: ", dataStore)
 
 		if locationId == "" {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
@@ -73,20 +74,20 @@ func setupRoutes(app *fiber.App) {
 			}
 		}
 
-		fmt.Println("Process get response", response)
+		log.Println("Process get response", response)
 
 		body, err := json.Marshal(response)
 
 		if err != nil {
 			return c.Status(500).SendString(err.Error())
 		}
-		log.Println("Get Ended for: ", locationId, "Data Store: ", dataStore)
+		log.Println("Get Ended for: ", locationId)
 		return c.Status(200).Send(body)
 	})
 
 	app.Get("/internal/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
-		fmt.Println("Got internal call to get data!")
+		log.Println("Got internal call to get data!")
 
 		if locationId == "" {
 			return c.SendStatus(fiber.ErrBadRequest.Code)

@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 func padRightWithZeros(arr []byte, length int) []byte {
 	// Calculate how many zeros need to be added
 	zerosToAdd := length - len(arr)
@@ -11,13 +9,13 @@ func padRightWithZeros(arr []byte, length int) []byte {
 		arr = append(arr, 0)
 	}
 
-	fmt.Println("Padded Array: ", arr)
+	// fmt.Println("Padded Array: ", arr)
 
 	return arr
 }
 
 func constructInternalUrl(nodeIp string, locationId string) string {
-	return "http://" + nodeIp + ":8000" + "/internal/" + locationId
+	return nodeIp + "/internal/" + locationId
 }
 
 func removeTrailingZeros(byteArr []byte) []byte {
