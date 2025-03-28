@@ -9,7 +9,7 @@ fi
 PORT=$1
 
 # Set the CURRENT_NODE_IP dynamically based on the provided port
-export CURRENT_NODE_IP="http://localhost:$PORT"
+export CURRENT_NODE_IP="localhost"
 
 # Load server IPs (if needed)
 source ./serverIps.sh
