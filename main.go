@@ -14,6 +14,7 @@ import (
 	"os"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,23 +45,24 @@ type LocationData struct {
 	modificationCount int
 }
 
+type ResponsePayload struct {
+	Payload
+	ModificationCount int `json:"modification_count"`
+}
+
 var dataStore map[string]LocationData = make(map[string]LocationData)
 var currentNodeIp string
-var nodeIpMap map[int]string
+var currentNodeGrpcIp string
+var nodeIps []string
+var grpcIps []string
 
-// 7,3
-// Note that number of parity shards will give you maximum tolerated failures, so here 3 failures is the maximum tolerated.
 func processPayload(payload []byte) ([][]byte, error) {
-	// if(len(dataStore) > 100) {return nil, errors.New(MEMORY_FULL)}
 
 	enc, _ := reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS)
 	data := make([][]byte, TOTAL_SHARDS)
 
 	chunkSizeFloat := float64(len(payload)) / float64(NUMBER_OF_DATA_SHARDS)
 	chunkSize := int(math.Ceil(chunkSizeFloat))
-	// fmt.Println("Payload Size: ", len(payload))
-	// fmt.Println("Chunk size: ", chunkSize)
-	// Create all shards, size them at chunkSize each
 
 	for i := range TOTAL_SHARDS {
 		data[i] = make([]byte, chunkSize)
@@ -68,30 +70,29 @@ func processPayload(payload []byte) ([][]byte, error) {
 
 	populateDataChunks(payload, chunkSize, data)
 
-	// fmt.Println("***************** Initial Data")
-	// printData(data)
-
 	err := enc.Encode(data)
 
-	// fmt.Println("Processing payload: ", err)
 	return data, err
 }
 
 func loadEnv() {
 	currentNodeIp = os.Getenv("CURRENT_NODE_IP")
 	allNodeIps := os.Getenv("ALL_NODE_IPS")
-
-	// fmt.Println(currentNodeIp)
-	// fmt.Println(allNodeIps)
-
+	
 	if len(allNodeIps) == 0 || len(currentNodeIp) == 0 {
 		panic("Oh no we are doomed!")
 	}
-	nodeIps := strings.Split(allNodeIps, ",")
-	nodeIpMap = make(map[int]string)
-	for index, ip := range nodeIps {
-		nodeIpMap[index] = ip
+	// nodeIps := strings.Split(allNodeIps, ",")
+	nodeIps = strings.Split(allNodeIps, ",")
+	grpcIps = getGrpcIps(nodeIps)
+	log.Println("GRPC IPs:", grpcIps)
+	grpcIp, err := getGrpcIpFor(currentNodeIp)
+
+	if err != nil {
+		panic("Grpc conversion failed, something wrong.")
 	}
+
+	currentNodeGrpcIp = grpcIp
 	log.Println("loading with current ip and node ips", currentNodeIp, nodeIps)
 }
 
@@ -106,7 +107,12 @@ func main() {
 	app := fiber.New(fiberConfig)
 
 	setupRoutes(app)
+	grpcServerPort, err := strconv.ParseInt(*portPtr, 10, 32)
+	if err != nil {
+		panic("Unable to start grpc server at: " + string(grpcServerPort))
+	}
 
+	go startGrpcServer(strconv.Itoa(int(grpcServerPort + 1000)))
 	app.Listen(port)
 }
 
@@ -120,7 +126,8 @@ func processUpdateRequest(locationId string, payload []byte) error {
 		return err
 	}
 
-	yourShare, err := replicateData(locationId, encodedPayload)
+	log.Println("Full data: ", encodedPayload)
+	yourShare, err := replicateDataGrpc(locationId, encodedPayload)
 
 	if err != nil {
 		return err
@@ -159,7 +166,7 @@ func makePutRequest(url string, payload []byte) error {
 func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
 	var myShare []byte
 	for index, value := range encodedPayload {
-		nodeIp := nodeIpMap[index]
+		nodeIp := nodeIps[index]
 		if nodeIp != currentNodeIp {
 			err := makePutRequest(constructInternalUrl(nodeIp, locationId), value)
 			if err != nil {
@@ -181,11 +188,6 @@ func populateDataChunks(out []byte, chunkSize int, data [][]byte) {
 	}
 }
 
-type ResponsePayload struct {
-	Payload
-	ModificationCount int `json:"modification_count"`
-}
-
 func processGetRequest(locationId string) (ResponsePayload, error) {
 	enc, _ := reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS)
 
@@ -198,20 +200,13 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 
 	chunkSize := len(myLocationData.data)
 
-	// chunkSizeFloat := float64(len(payload)) / float64(NUMBER_OF_DATA_SHARDS)
-	// chunkSize := int(math.Ceil(chunkSizeFloat))
-	// fmt.Println("Payload Size: ", len(payload))
-	// fmt.Println("Chunk size: ", chunkSize)
-	// Create all shards, size them at chunkSize each
-
 	for i := range TOTAL_SHARDS {
 		data[i] = make([]byte, chunkSize)
 	}
-	// log.Println("Empty Data set : ", data)
+
 	getAllShards(data, locationId, chunkSize)
 
 	err := enc.Reconstruct(data)
-	// fmt.Println("Reconstructed data with encoder: ", data)
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -219,13 +214,12 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 	}
 
 	reconstructedData := reconstruct(data)
-	// fmt.Println("Processing payload: ", reconstructedData, "error:", err)
 	return ResponsePayload{Payload: reconstructedData, ModificationCount: myLocationData.modificationCount}, nil
 }
 
 func getAllShards(data [][]byte, locationId string, chunkSize int) {
 	fmt.Println("Getting all Data!")
-	for index, nodeIp := range nodeIpMap {
+	for index, nodeIp := range nodeIps {
 		internalUrl := constructInternalUrl(nodeIp, locationId)
 		fmt.Println("running for", nodeIp, "index", index, "url", internalUrl)
 		if nodeIp != currentNodeIp {
@@ -238,10 +232,8 @@ func getAllShards(data [][]byte, locationId string, chunkSize int) {
 			}
 		} else {
 			data[index] = padRightWithZeros(dataStore[locationId].data, chunkSize)
-			// log.Println("padding my share: ", data[index])
 		}
 	}
-	// printData(data)
 }
 
 func makeGetRequest(url string) ([]byte, error) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"sync/atomic"
 	"unsafe"
 )
@@ -15,7 +16,9 @@ Flow:
 		perform gets from all across the other pods and wait till we get the data through the shared channel
 */
 const BYTES_IN_GB uintptr = 1_00_00_00_000
+
 var totalSize uintptr
+
 type UpdateChannelPayload struct {
 	locationId     string
 	encodedPayload []byte
@@ -33,13 +36,14 @@ func dataStoreWriter() {
 			if !ok {
 				return
 			}
+			log.Println("Starting update internally: ", val.locationId)
 			updateDataStore(val.locationId, val.encodedPayload)
-			
 		}
 	}
 }
 
 func updateDataStore(locationId string, dataShard []byte) {
+	log.Println("Updating data store for: ", locationId, dataShard)
 	existingValue, exists := dataStore[locationId]
 	if exists {
 		dataStore[locationId] = LocationData{data: dataShard, modificationCount: existingValue.modificationCount + 1}
@@ -51,9 +55,9 @@ func updateDataStore(locationId string, dataShard []byte) {
 }
 
 func allowWrites() bool {
-	if(atomic.LoadUintptr(&totalSize) <= BYTES_IN_GB) {
+	if atomic.LoadUintptr(&totalSize) <= BYTES_IN_GB {
 		return true
-	}else {
+	} else {
 		return false
 	}
 }

@@ -1,5 +1,14 @@
 package main
 
+import (
+	"errors"
+	"fmt"
+	"log"
+	"net/url"
+	"strconv"
+	"strings"
+)
+
 func padRightWithZeros(arr []byte, length int) []byte {
 	// Calculate how many zeros need to be added
 	zerosToAdd := length - len(arr)
@@ -24,7 +33,53 @@ func removeTrailingZeros(byteArr []byte) []byte {
 			return byteArr[:i+1]
 		}
 	}
-	// If all bytes are zeros, return an empty slice
 	return []byte{}
+}
 
+func getGrpcIps(nodeIps []string) []string {
+	convertedIPs := make([]string, 0, len(nodeIps))
+
+	for _, ip := range nodeIps {
+		// Parse the URL
+		grpcIp, err := getGrpcIpFor(ip)
+		if err != nil {
+			log.Printf("Error parsing URL %s: %v\n", ip, err)
+			continue
+		}
+
+		convertedIPs = append(convertedIPs, grpcIp)
+	}
+
+	return convertedIPs
+}
+
+func getGrpcIpFor(ip string) (string, error) {
+	log.Println("Getting GRPC IP for ip: ", ip)
+	parsedUrl, err := url.Parse(ip)
+
+	if err != nil {
+		return "", err
+	}
+
+	hostPort := parsedUrl.Host
+	parts := strings.Split(hostPort, ":")
+
+	if len(parts) != 2 {
+		log.Printf("Invalid host:port format in %s\n", ip)
+		return "", errors.New("invalid host:port format")
+	}
+
+	host := parts[0]
+	portStr := parts[1]
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		log.Printf("Error converting port %s: %v\n", portStr, err)
+		return "", err
+	}
+
+	newPort := port + 1000
+
+	newHostPort := fmt.Sprintf("%s:%d", host, newPort)
+	return newHostPort, nil
 }
