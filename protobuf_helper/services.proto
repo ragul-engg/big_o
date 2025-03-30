@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+
+option go_package = "google.golang.org/grpc/protobuf_helper";
+service Internal {
+  rpc UpsertLocationData(UpsertPayload) returns (Empty) {}
+}
+
+message UpsertPayload {
+  string locationId = 1;
+  bytes encodedPayload = 2;
+}
+
+message Empty {
+
+}
