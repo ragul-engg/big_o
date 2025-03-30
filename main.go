@@ -10,7 +10,9 @@ import (
 	"log"
 	"math"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -95,12 +97,16 @@ func loadEnv() {
 
 func main() {
 	loadEnv()
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	go dataStoreWriter()
 	readFlags(portPtr)
 	var port = ":" + *portPtr
 
 	app := fiber.New(fiberConfig)
+
 	setupRoutes(app)
+
 	app.Listen(port)
 }
 

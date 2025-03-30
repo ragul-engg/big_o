@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/pprof"
 )
 
 func setupRoutes(app *fiber.App) {
@@ -12,6 +13,14 @@ func setupRoutes(app *fiber.App) {
 		return c.SendStatus(200)
 	})
 
+	externalRoutes(app)
+
+	internalRoutes(app)
+
+	app.Use(pprof.New(pprof.Config{Prefix: "/logs"}))
+}
+
+func externalRoutes(app *fiber.App) {
 	app.Put("/:locationId", func(c *fiber.Ctx) error {
 		locationId, ok := c.AllParams()["locationId"]
 		log.Println("PUT Recieved: ", locationId)
@@ -33,23 +42,6 @@ func setupRoutes(app *fiber.App) {
 		}
 
 		log.Println("PUT Ended: ", locationId)
-		return c.SendStatus(fiber.StatusCreated)
-	})
-
-	app.Put("/internal/:locationId", func(c *fiber.Ctx) error {
-		locationId := c.Params("locationId", "")
-		log.Println("Internal PUT Recieved: ", locationId)
-		if locationId == "" {
-			return c.SendStatus(fiber.ErrBadRequest.Code)
-		}
-
-		payload := c.BodyRaw()
-		// fmt.Println("Got internal call to replicate data: ", payload)
-
-		updateChannel <- UpdateChannelPayload{locationId: locationId, encodedPayload: payload}
-		// updateDataStore(locationId, payload)
-
-		log.Println("Internal PUT Ended: ", locationId)
 		return c.SendStatus(fiber.StatusCreated)
 	})
 
@@ -84,7 +76,9 @@ func setupRoutes(app *fiber.App) {
 		log.Println("Get Ended for: ", locationId)
 		return c.Status(200).Send(body)
 	})
+}
 
+func internalRoutes(app *fiber.App) {
 	app.Get("/internal/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
 		log.Println("Got internal call to get data!")
@@ -100,5 +94,22 @@ func setupRoutes(app *fiber.App) {
 		}
 
 		return c.Status(200).Send(body.data)
+	})
+
+	app.Put("/internal/:locationId", func(c *fiber.Ctx) error {
+		locationId := c.Params("locationId", "")
+		log.Println("Internal PUT Recieved: ", locationId)
+		if locationId == "" {
+			return c.SendStatus(fiber.ErrBadRequest.Code)
+		}
+
+		payload := c.BodyRaw()
+		// fmt.Println("Got internal call to replicate data: ", payload)
+
+		updateChannel <- UpdateChannelPayload{locationId: locationId, encodedPayload: payload}
+		// updateDataStore(locationId, payload)
+
+		log.Println("Internal PUT Ended: ", locationId)
+		return c.SendStatus(fiber.StatusCreated)
 	})
 }
