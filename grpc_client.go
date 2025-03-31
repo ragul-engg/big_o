@@ -10,20 +10,22 @@ import (
 
 func updatePod(url string, upsertPayload *pb.UpsertPayload) error {
 	log.Println("Update launched for: ", url)
-	conn, err := connectionPool.GetConnectionFor(url)
+	client, err := connectionPool.GetClientFor(url)
+
 	if err != nil {
-		log.Println("ERROR: establishing GRPC connection failed for: ", conn, err)
+		log.Println("ERROR: client not found for: ", url, " Error: ", err)
 		return err
 	}
-	client := pb.NewInternalClient(conn)
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	_, err = client.UpsertLocationData(ctx, upsertPayload)
 	if err != nil {
+		log.Println("Error: Upsert failed.", err)
 		return err
 	}
-	log.Println("Update completed for: ", url, " Errors: ", err)
+	log.Println("Update completed for: ", url)
 	return nil
 }
 
