@@ -1,19 +1,16 @@
 package main
 
 import (
+	connectionPool "big_o/connection_pool"
 	pb "big_o/protobuf_helper"
 	"context"
 	"log"
 	"time"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-// var grpcClients = map[string](grpc.Client)
 func updatePod(url string, upsertPayload *pb.UpsertPayload) error {
 	log.Println("Update launched for: ", url)
-	conn, err := grpc.NewClient(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := connectionPool.GetConnectionFor(url)
 	if err != nil {
 		log.Println("ERROR: establishing GRPC connection failed for: ", conn, err)
 		return err

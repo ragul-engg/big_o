@@ -1,6 +1,7 @@
 package main
 
 import (
+	connectionPool "big_o/connection_pool"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -78,7 +79,7 @@ func processPayload(payload []byte) ([][]byte, error) {
 func loadEnv() {
 	currentNodeIp = os.Getenv("CURRENT_NODE_IP")
 	allNodeIps := os.Getenv("ALL_NODE_IPS")
-	
+
 	if len(allNodeIps) == 0 || len(currentNodeIp) == 0 {
 		panic("Oh no we are doomed!")
 	}
@@ -113,6 +114,8 @@ func main() {
 	}
 
 	go startGrpcServer(strconv.Itoa(int(grpcServerPort + 1000)))
+	go connectionPool.InitialiseConnectionPool(grpcIps)
+
 	app.Listen(port)
 }
 
