@@ -17,4 +17,4 @@ source ./serverIps.sh
 # Run the Go application with the provided port
 go build -o big_o .
 
-./big_o --port $PORT
+./big_o --port $PORT >>"logs_${PORT}.log"

@@ -97,13 +97,26 @@ func loadEnv() {
 	log.Println("loading with current ip and node ips", currentNodeIp, nodeIps)
 }
 
+func setLogger(port string) {
+	var file = "logs_"+port+".log"
+	f, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+	log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+	wrt := io.MultiWriter(os.Stdout, f)
+	log.SetOutput(wrt)
+}
+
 func main() {
+
 	loadEnv()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	go dataStoreWriter()
 	readFlags(portPtr)
 	var port = ":" + *portPtr
+	setLogger(*portPtr)
 
 	app := fiber.New(fiberConfig)
 
@@ -123,15 +136,22 @@ func processUpdateRequest(locationId string, payload []byte) error {
 	if !allowWrites() {
 		return errors.New(MEMORY_FULL)
 	}
+	encodeStart := time.Now()
 	encodedPayload, err := processPayload(payload)
-
+	encodeElapsed:=time.Since(encodeStart)
+	
+	log.Printf("Encoding took %s to run\n", encodeElapsed)
+	
 	if err != nil {
 		return err
 	}
-
-	log.Println("Full data: ", encodedPayload)
+	
+	replicateStart := time.Now()
 	yourShare, err := replicateDataGrpc(locationId, encodedPayload)
+	replicateElapsed:=time.Since(replicateStart)
 
+	log.Printf("Replicating took %s to run\n", replicateElapsed)
+	
 	if err != nil {
 		return err
 	}
