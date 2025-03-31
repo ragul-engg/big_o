@@ -56,10 +56,10 @@ var currentNodeIp string
 var currentNodeGrpcIp string
 var nodeIps []string
 var grpcIps []string
+var enc, _ = reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS, reedsolomon.WithMaxGoroutines(25))
 
 func processPayload(payload []byte) ([][]byte, error) {
 
-	enc, _ := reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS)
 	data := make([][]byte, TOTAL_SHARDS)
 
 	chunkSizeFloat := float64(len(payload)) / float64(NUMBER_OF_DATA_SHARDS)
