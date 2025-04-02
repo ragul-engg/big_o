@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -18,7 +17,7 @@ func padRightWithZeros(arr []byte, length int) []byte {
 		arr = append(arr, 0)
 	}
 
-	// fmt.Println("Padded Array: ", arr)
+	// // fmt.Println("Padded Array: ", arr)
 
 	return arr
 }
@@ -43,7 +42,7 @@ func getGrpcIps(nodeIps []string) []string {
 		// Parse the URL
 		grpcIp, err := getGrpcIpFor(ip)
 		if err != nil {
-			log.Printf("Error parsing URL %s: %v\n", ip, err)
+			// log.Printf("Error parsing URL %s: %v\n", ip, err)
 			continue
 		}
 
@@ -54,7 +53,7 @@ func getGrpcIps(nodeIps []string) []string {
 }
 
 func getGrpcIpFor(ip string) (string, error) {
-	log.Println("Getting GRPC IP for ip: ", ip)
+	// log.Println("Getting GRPC IP for ip: ", ip)
 	parsedUrl, err := url.Parse(ip)
 
 	if err != nil {
@@ -65,7 +64,7 @@ func getGrpcIpFor(ip string) (string, error) {
 	parts := strings.Split(hostPort, ":")
 
 	if len(parts) != 2 {
-		log.Printf("Invalid host:port format in %s\n", ip)
+		// log.Printf("Invalid host:port format in %s\n", ip)
 		return "", errors.New("invalid host:port format")
 	}
 
@@ -74,7 +73,7 @@ func getGrpcIpFor(ip string) (string, error) {
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Printf("Error converting port %s: %v\n", portStr, err)
+		// log.Printf("Error converting port %s: %v\n", portStr, err)
 		return "", err
 	}
 

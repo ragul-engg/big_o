@@ -13,7 +13,7 @@ import (
 const MAX_RETRIES int = 3
 const RETRY_TIMEOUT = 5 * time.Second
 const CLIENT_DOES_NOT_EXIST = "client does not exist."
-const CONNECTION_DOES_NOT_EXIST ="connection does not exist."
+const CONNECTION_DOES_NOT_EXIST = "connection does not exist."
 
 type Connections = map[string]*grpc.ClientConn
 type clientMap = map[string]pb.InternalClient
@@ -22,18 +22,17 @@ var connectionPool ConnectionPool
 
 type ConnectionPool struct {
 	connections Connections
-	clients clientMap
+	clients     clientMap
 }
 
 func InitialiseConnectionPool(urls []string) {
 	connections := acquireConnections(urls)
-	clients :=  generateClients(connections)
+	clients := generateClients(connections)
 	connectionPool = ConnectionPool{
 		connections: connections,
-		clients: clients,
+		clients:     clients,
 	}
 }
-
 
 func GetConnectionFor(url string) (*grpc.ClientConn, error) {
 	conn, exists := connectionPool.connections[url]
@@ -76,7 +75,7 @@ func connectToServerWithRetries(url string) *grpc.ClientConn {
 	panic("Acquiring connections for " + url + " failed. Shutting down systems.")
 }
 
-func generateClients(connections Connections) clientMap{
+func generateClients(connections Connections) clientMap {
 	clientMap := make(map[string](pb.InternalClient))
 	for url, connection := range connections {
 		clientMap[url] = pb.NewInternalClient(connection)

@@ -6,12 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"math"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"slices"
@@ -23,6 +21,7 @@ import (
 	"github.com/klauspost/reedsolomon"
 )
 
+// var logger = // log.New(os.NewFile())
 const NUMBER_OF_DATA_SHARDS int = 4
 const NUMBER_OF_PARITY_SHARDS int = 3
 const TOTAL_SHARDS int = NUMBER_OF_DATA_SHARDS + NUMBER_OF_PARITY_SHARDS
@@ -59,7 +58,6 @@ var grpcIps []string
 var enc, _ = reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS, reedsolomon.WithMaxGoroutines(25))
 
 func processPayload(payload []byte) ([][]byte, error) {
-
 	data := make([][]byte, TOTAL_SHARDS)
 
 	chunkSizeFloat := float64(len(payload)) / float64(NUMBER_OF_DATA_SHARDS)
@@ -86,7 +84,7 @@ func loadEnv() {
 	// nodeIps := strings.Split(allNodeIps, ",")
 	nodeIps = strings.Split(allNodeIps, ",")
 	grpcIps = getGrpcIps(nodeIps)
-	log.Println("GRPC IPs:", grpcIps)
+	// log.Println("GRPC IPs:", grpcIps)
 	grpcIp, err := getGrpcIpFor(currentNodeIp)
 
 	if err != nil {
@@ -94,7 +92,7 @@ func loadEnv() {
 	}
 
 	currentNodeGrpcIp = grpcIp
-	log.Println("loading with current ip and node ips", currentNodeIp, nodeIps)
+	// log.Println("loading with current ip and node ips", currentNodeIp, nodeIps)
 }
 
 func main() {
@@ -120,16 +118,16 @@ func main() {
 }
 
 func processUpdateRequest(locationId string, payload []byte) error {
-	if !allowWrites() {
-		return errors.New(MEMORY_FULL)
-	}
+	// if !allowWrites() {
+	// 	return errors.New(MEMORY_FULL)
+	// }
 	encodedPayload, err := processPayload(payload)
 
 	if err != nil {
 		return err
 	}
 
-	log.Println("Full data: ", encodedPayload)
+	// log.Println("Full data: ", encodedPayload)
 	yourShare, err := replicateDataGrpc(locationId, encodedPayload)
 
 	if err != nil {
@@ -143,7 +141,7 @@ func processUpdateRequest(locationId string, payload []byte) error {
 }
 
 func makePutRequest(url string, payload []byte) error {
-	fmt.Println("Making request to: ", url)
+	// fmt.Println("Making request to: ", url)
 	client := http.Client{
 		Timeout: 3 * time.Second,
 	}
@@ -173,10 +171,10 @@ func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
 		if nodeIp != currentNodeIp {
 			err := makePutRequest(constructInternalUrl(nodeIp, locationId), value)
 			if err != nil {
-				fmt.Println("Something went wrong with post requests: ", err)
+				log.Println("ERROR: Something went wrong with post requests: ", err)
 			}
 		} else {
-			log.Println("Taking my share: ", nodeIp)
+			// log.Println("Taking my share: ", nodeIp)
 			myShare = value
 		}
 	}
@@ -212,7 +210,7 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 	err := enc.Reconstruct(data)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		// fmt.Println(err.Error())
 		return ResponsePayload{}, errors.New(COULD_NOT_RECONSTRUCT_DATA)
 	}
 
@@ -221,14 +219,14 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 }
 
 func getAllShards(data [][]byte, locationId string, chunkSize int) {
-	fmt.Println("Getting all Data!")
+	// fmt.Println("Getting all Data!")
 	for index, nodeIp := range nodeIps {
 		internalUrl := constructInternalUrl(nodeIp, locationId)
-		fmt.Println("running for", nodeIp, "index", index, "url", internalUrl)
+		// fmt.Println("running for", nodeIp, "index", index, "url", internalUrl)
 		if nodeIp != currentNodeIp {
 			res, err := makeGetRequest(internalUrl)
 			if err != nil {
-				fmt.Println("Something went wrong with Get requests: ", err)
+				// fmt.Println("Something went wrong with Get requests: ", err)
 				data[index] = nil
 			} else {
 				data[index] = padRightWithZeros(res, chunkSize)
@@ -265,14 +263,14 @@ func reconstruct(data [][]byte) Payload {
 	}
 
 	trimmedByteArr := removeTrailingZeros(byteArr)
-	err := json.Unmarshal(trimmedByteArr, &payload)
+	json.Unmarshal(trimmedByteArr, &payload)
 
-	fmt.Println("Error while unmarshalling", err)
+	// fmt.Println("Error while unmarshalling", err)
 
 	return payload
 }
 
 func readFlags(portPtr *string) {
 	flag.Parse()
-	fmt.Println("port:", *portPtr)
+	// fmt.Println("port:", *portPtr)
 }

@@ -1,9 +1,7 @@
 package main
 
 import (
-	"log"
 	"sync/atomic"
-	"unsafe"
 )
 
 /*
@@ -24,11 +22,6 @@ type UpdateChannelPayload struct {
 	encodedPayload []byte
 }
 
-func InitLoop() {
-	updateChan := make(chan UpdateChannelPayload)
-	updateChan <- UpdateChannelPayload{}
-}
-
 func dataStoreWriter() {
 	for {
 		select {
@@ -36,22 +29,20 @@ func dataStoreWriter() {
 			if !ok {
 				return
 			}
-			log.Println("Starting update internally: ", val.locationId)
+			// log.Println("Starting update internally: ", val.locationId)
 			updateDataStore(val.locationId, val.encodedPayload)
 		}
 	}
 }
 
 func updateDataStore(locationId string, dataShard []byte) {
-	log.Println("Updating data store for: ", locationId, dataShard)
+	// log.Println("Updating data store for: ", locationId, dataShard)
 	existingValue, exists := dataStore[locationId]
 	if exists {
 		dataStore[locationId] = LocationData{data: dataShard, modificationCount: existingValue.modificationCount + 1}
 	} else {
 		dataStore[locationId] = LocationData{data: dataShard, modificationCount: 1}
 	}
-	size := unsafe.Sizeof(dataStore)
-	atomic.StoreUintptr(&totalSize, size)
 }
 
 func allowWrites() bool {

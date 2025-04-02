@@ -9,7 +9,7 @@ import (
 )
 
 func updatePod(url string, upsertPayload *pb.UpsertPayload) error {
-	log.Println("Update launched for: ", url)
+	// log.Println("Update launched for: ", url)
 	client, err := connectionPool.GetClientFor(url)
 
 	if err != nil {
@@ -25,7 +25,7 @@ func updatePod(url string, upsertPayload *pb.UpsertPayload) error {
 		log.Println("Error: Upsert failed.", err)
 		return err
 	}
-	log.Println("Update completed for: ", url)
+	// log.Println("Update completed for: ", url)
 	return nil
 }
 
@@ -35,12 +35,13 @@ func replicateDataGrpc(locationId string, encodedPayload [][]byte) ([]byte, erro
 		nodeIp := grpcIps[index]
 		upsertPayload := constructUpsertPayload(locationId, value)
 		if nodeIp != currentNodeGrpcIp {
-			err := updatePod(nodeIp, &upsertPayload)
-			if err != nil {
-				log.Println("Something went wrong with GRPC update", err)
-			}
+			// err := updatePod(nodeIp, &upsertPayload)
+			// if err != nil {
+			// 	log.Println("Something went wrong with GRPC update", err)
+			// }
+			go updatePod(nodeIp, &upsertPayload)
 		} else {
-			log.Println("Taking my share: ", nodeIp)
+			// log.Println("Taking my share: ", nodeIp)
 			myShare = value
 		}
 	}
