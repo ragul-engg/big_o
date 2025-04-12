@@ -14,6 +14,8 @@ export CURRENT_NODE_IP="http://localhost:$PORT"
 # Load server IPs (if needed)
 source ./serverIps.sh
 
+rm big_o
+
 # Run the Go application with the provided port
 go build -o big_o .
 
