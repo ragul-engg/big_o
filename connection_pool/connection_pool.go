@@ -2,8 +2,8 @@ package connection_pool
 
 import (
 	pb "big_o/protobuf_helper"
-	"errors"
 	"log"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -18,37 +18,30 @@ const CONNECTION_DOES_NOT_EXIST ="connection does not exist."
 type Connections = map[string]*grpc.ClientConn
 type clientMap = map[string]pb.InternalClient
 
-var connectionPool ConnectionPool
+var connectionPool ConnectionPool = ConnectionPool{
+	connections: make(map[string]*grpc.ClientConn),
+	clients: make(map[string]pb.InternalClient),
+}
 
 type ConnectionPool struct {
+	mu sync.Mutex
 	connections Connections
 	clients clientMap
 }
 
-func InitialiseConnectionPool(urls []string) {
-	connections := acquireConnections(urls)
-	clients :=  generateClients(connections)
-	connectionPool = ConnectionPool{
-		connections: connections,
-		clients: clients,
-	}
-}
-
-
-func GetConnectionFor(url string) (*grpc.ClientConn, error) {
-	conn, exists := connectionPool.connections[url]
-	if exists {
-		return conn, nil
-	}
-	return nil, errors.New("connection does not exist.")
-}
 
 func GetClientFor(url string) (pb.InternalClient, error) {
 	client, exists := connectionPool.clients[url]
 	if exists {
 		return client, nil
 	}
-	return nil, errors.New("client does not exist.")
+	connectionPool.mu.Lock()
+    defer connectionPool.mu.Unlock()
+
+	client = pb.NewInternalClient(connectToServerWithRetries(url))
+ 	connectionPool.clients[url] = client
+	
+	return client, nil
 }
 
 func acquireConnections(urls []string) Connections {

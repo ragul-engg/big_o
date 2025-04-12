@@ -114,7 +114,6 @@ func main() {
 	}
 
 	go startGrpcServer(strconv.Itoa(int(grpcServerPort + 1000)))
-	go connectionPool.InitialiseConnectionPool(grpcIps)
 
 	app.Listen(port)
 }
