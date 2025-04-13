@@ -4,16 +4,15 @@ import (
 	connectionPool "big_o/connection_pool"
 	pb "big_o/protobuf_helper"
 	"context"
-	"log"
 	"time"
 )
 
 func updatePod(url string, upsertPayload *pb.UpsertPayload) error {
-	log.Println("Update launched for: ", url)
+	logger.Debugln("Update launched for: ", url)
 	client, err := connectionPool.GetClientFor(url)
 
 	if err != nil {
-		log.Println("ERROR: client not found for: ", url, " Error: ", err)
+		logger.Errorln("ERROR: client not found for: ", url, " Error: ", err)
 		return err
 	}
 
@@ -22,10 +21,10 @@ func updatePod(url string, upsertPayload *pb.UpsertPayload) error {
 
 	_, err = client.UpsertLocationData(ctx, upsertPayload)
 	if err != nil {
-		log.Println("Error: Upsert failed.", err)
+		logger.Errorln("Error: Upsert failed.", err)
 		return err
 	}
-	log.Println("Update completed for: ", url)
+	logger.Debugln("Update completed for: ", url)
 	return nil
 }
 
@@ -37,10 +36,10 @@ func replicateDataGrpc(locationId string, encodedPayload [][]byte) ([]byte, erro
 		if nodeIp != currentNodeGrpcIp {
 			err := updatePod(nodeIp, &upsertPayload)
 			if err != nil {
-				log.Println("Something went wrong with GRPC update", err)
+				logger.Errorf("GRPC update to %s failed with error: %s\n", nodeIp, err)
 			}
 		} else {
-			log.Println("Taking my share: ", nodeIp)
+			logger.Debugln("Taking my share: ", nodeIp)
 			myShare = value
 		}
 	}

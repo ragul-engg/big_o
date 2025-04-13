@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -43,7 +42,7 @@ func getGrpcIps(nodeIps []string) []string {
 		// Parse the URL
 		grpcIp, err := getGrpcIpFor(ip)
 		if err != nil {
-			log.Printf("Error parsing URL %s: %v\n", ip, err)
+			logger.Errorf("Error parsing URL %s: %v\n", ip, err)
 			continue
 		}
 
@@ -54,7 +53,6 @@ func getGrpcIps(nodeIps []string) []string {
 }
 
 func getGrpcIpFor(ip string) (string, error) {
-	log.Println("Getting GRPC IP for ip: ", ip)
 	parsedUrl, err := url.Parse(ip)
 
 	if err != nil {
@@ -65,7 +63,7 @@ func getGrpcIpFor(ip string) (string, error) {
 	parts := strings.Split(hostPort, ":")
 
 	if len(parts) != 2 {
-		log.Printf("Invalid host:port format in %s\n", ip)
+		logger.Errorf("Invalid host:port format in %s\n", ip)
 		return "", errors.New("invalid host:port format")
 	}
 
@@ -74,12 +72,13 @@ func getGrpcIpFor(ip string) (string, error) {
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Printf("Error converting port %s: %v\n", portStr, err)
+		logger.Errorf("Error converting port %s: %v\n", portStr, err)
 		return "", err
 	}
 
 	newPort := port + 1000
 
 	newHostPort := fmt.Sprintf("%s:%d", host, newPort)
+	logger.Infof("GRPC IP for ip: %v is %v", ip, newHostPort)
 	return newHostPort, nil
 }

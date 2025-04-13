@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"sync/atomic"
 	"unsafe"
 )
@@ -36,14 +35,14 @@ func dataStoreWriter() {
 			if !ok {
 				return
 			}
-			log.Println("Starting update internally: ", val.locationId)
+			logger.Debugln("Starting update internally: ", val.locationId)
 			updateDataStore(val.locationId, val.encodedPayload)
 		}
 	}
 }
 
 func updateDataStore(locationId string, dataShard []byte) {
-	log.Println("Updating data store for: ", locationId, dataShard)
+	logger.Debugln("Updating data store for: ", locationId, dataShard)
 	existingValue, exists := dataStore[locationId]
 	if exists {
 		dataStore[locationId] = LocationData{data: dataShard, modificationCount: existingValue.modificationCount + 1}

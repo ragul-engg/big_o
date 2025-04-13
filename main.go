@@ -1,14 +1,13 @@
 package main
 
 import (
-	connectionPool "big_o/connection_pool"
+	// connectionPool "big_o/connection_pool"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
-	"log"
+
 	"math"
 	"net/http"
 	_ "net/http/pprof"
@@ -21,6 +20,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/klauspost/reedsolomon"
+	logrus "github.com/sirupsen/logrus"
 )
 
 const NUMBER_OF_DATA_SHARDS int = 4
@@ -34,6 +34,8 @@ const MEMORY_FULL = "memory is full."
 
 var portPtr = flag.String("port", "8000", "send port number")
 var updateChannel = make(chan UpdateChannelPayload)
+
+var logger = logrus.New()
 
 type Payload struct {
 	Id               string  `json:"id"`
@@ -83,10 +85,10 @@ func loadEnv() {
 	if len(allNodeIps) == 0 || len(currentNodeIp) == 0 {
 		panic("Oh no we are doomed!")
 	}
-	// nodeIps := strings.Split(allNodeIps, ",")
 	nodeIps = strings.Split(allNodeIps, ",")
 	grpcIps = getGrpcIps(nodeIps)
-	log.Println("GRPC IPs:", grpcIps)
+
+	logger.Infof("GRPC IPs: %v", grpcIps)
 	grpcIp, err := getGrpcIpFor(currentNodeIp)
 
 	if err != nil {
@@ -94,13 +96,13 @@ func loadEnv() {
 	}
 
 	currentNodeGrpcIp = grpcIp
-	log.Println("loading with current ip and node ips", currentNodeIp, nodeIps)
+	logger.Infof("Loading with current ip: %v . Node ips: %v ", currentNodeIp, nodeIps)
 }
 
 func main() {
 	loadEnv()
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
+	logger.SetLevel(logrus.InfoLevel)
 	go dataStoreWriter()
 	readFlags(portPtr)
 	var port = ":" + *portPtr
@@ -128,7 +130,7 @@ func processUpdateRequest(locationId string, payload []byte) error {
 		return err
 	}
 
-	log.Println("Full data: ", encodedPayload)
+	logger.Debug("Full data: ", encodedPayload)
 	yourShare, err := replicateDataGrpc(locationId, encodedPayload)
 
 	if err != nil {
@@ -142,7 +144,7 @@ func processUpdateRequest(locationId string, payload []byte) error {
 }
 
 func makePutRequest(url string, payload []byte) error {
-	fmt.Println("Making request to: ", url)
+	logger.Debug("Making request to: ", url)
 	client := http.Client{
 		Timeout: 3 * time.Second,
 	}
@@ -172,10 +174,10 @@ func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
 		if nodeIp != currentNodeIp {
 			err := makePutRequest(constructInternalUrl(nodeIp, locationId), value)
 			if err != nil {
-				fmt.Println("Something went wrong with post requests: ", err)
+				logger.Error("Something went wrong with PUT request: ", err)
 			}
 		} else {
-			log.Println("Taking my share: ", nodeIp)
+			logger.Debugln("Taking my share: ", nodeIp)
 			myShare = value
 		}
 	}
@@ -211,7 +213,7 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 	err := enc.Reconstruct(data)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Errorln(err.Error())
 		return ResponsePayload{}, errors.New(COULD_NOT_RECONSTRUCT_DATA)
 	}
 
@@ -220,14 +222,14 @@ func processGetRequest(locationId string) (ResponsePayload, error) {
 }
 
 func getAllShards(data [][]byte, locationId string, chunkSize int) {
-	fmt.Println("Getting all Data!")
+	logger.Debugln("Getting all Data!")
 	for index, nodeIp := range nodeIps {
 		internalUrl := constructInternalUrl(nodeIp, locationId)
-		fmt.Println("running for", nodeIp, "index", index, "url", internalUrl)
+		logger.Debugln("running for", nodeIp, "index", index, "url", internalUrl)
 		if nodeIp != currentNodeIp {
 			res, err := makeGetRequest(internalUrl)
 			if err != nil {
-				fmt.Println("Something went wrong with Get requests: ", err)
+				logger.Errorln("Something went wrong with Get requests: ", err)
 				data[index] = nil
 			} else {
 				data[index] = padRightWithZeros(res, chunkSize)
@@ -266,12 +268,13 @@ func reconstruct(data [][]byte) Payload {
 	trimmedByteArr := removeTrailingZeros(byteArr)
 	err := json.Unmarshal(trimmedByteArr, &payload)
 
-	fmt.Println("Error while unmarshalling", err)
+	if err != nil {
+		logger.Errorln("Error while unmarshalling", err)
+	}
 
 	return payload
 }
 
 func readFlags(portPtr *string) {
 	flag.Parse()
-	fmt.Println("port:", *portPtr)
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/pprof"
@@ -23,7 +22,7 @@ func setupRoutes(app *fiber.App) {
 func externalRoutes(app *fiber.App) {
 	app.Put("/:locationId", func(c *fiber.Ctx) error {
 		locationId, ok := c.AllParams()["locationId"]
-		log.Println("PUT Recieved: ", locationId)
+		logger.Debugln("PUT Recieved: ", locationId)
 		if !ok {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
 		}
@@ -41,20 +40,20 @@ func externalRoutes(app *fiber.App) {
 			}
 		}
 
-		log.Println("PUT Ended: ", locationId)
+		logger.Debugln("PUT Ended: ", locationId)
 		return c.SendStatus(fiber.StatusCreated)
 	})
 
 	app.Get("/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
-		// log.Println("Get Started for: ", locationId, "Data Store: ", dataStore)
+		logger.Debugln("Get Started for: ", locationId, "Data Store: ", dataStore)
 
 		if locationId == "" {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
 		}
 
 		response, err := processGetRequest(locationId)
-		log.Println("Get location errors, response :", response, err)
+		logger.Debugln("Get location errors, response :", response, err)
 		if err != nil {
 			switch err.Error() {
 			case LOCATION_ID_NOT_FOUND:
@@ -66,14 +65,14 @@ func externalRoutes(app *fiber.App) {
 			}
 		}
 
-		log.Println("Process get response", response)
+		logger.Debugln("Process get response", response)
 
 		body, err := json.Marshal(response)
 
 		if err != nil {
 			return c.Status(500).SendString(err.Error())
 		}
-		log.Println("Get Ended for: ", locationId)
+		logger.Debugln("Get Ended for: ", locationId)
 		return c.Status(200).Send(body)
 	})
 }
@@ -81,7 +80,7 @@ func externalRoutes(app *fiber.App) {
 func internalRoutes(app *fiber.App) {
 	app.Get("/internal/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
-		log.Println("Got internal call to get data!")
+		logger.Debugln("Got internal call to get data!")
 
 		if locationId == "" {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
@@ -98,7 +97,7 @@ func internalRoutes(app *fiber.App) {
 
 	app.Put("/internal/:locationId", func(c *fiber.Ctx) error {
 		locationId := c.Params("locationId", "")
-		log.Println("Internal PUT Recieved: ", locationId)
+		logger.Debugln("Internal PUT Recieved: ", locationId)
 		if locationId == "" {
 			return c.SendStatus(fiber.ErrBadRequest.Code)
 		}
@@ -109,7 +108,7 @@ func internalRoutes(app *fiber.App) {
 		updateChannel <- UpdateChannelPayload{locationId: locationId, encodedPayload: payload}
 		// updateDataStore(locationId, payload)
 
-		log.Println("Internal PUT Ended: ", locationId)
+		logger.Debugln("Internal PUT Ended: ", locationId)
 		return c.SendStatus(fiber.StatusCreated)
 	})
 }
