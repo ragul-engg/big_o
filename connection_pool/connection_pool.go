@@ -43,16 +43,6 @@ func GetClientFor(url string) (pb.InternalClient, error) {
 	return client, nil
 }
 
-func acquireConnections(urls []string) Connections {
-	connections := make(map[string]*grpc.ClientConn)
-	for _, url := range urls {
-		conn := connectToServerWithRetries(url)
-		connections[url] = conn
-	}
-
-	return connections
-}
-
 func connectToServerWithRetries(url string) *grpc.ClientConn {
 	retriedTimes := 0
 	for retriedTimes <= MAX_RETRIES {
@@ -66,12 +56,4 @@ func connectToServerWithRetries(url string) *grpc.ClientConn {
 		}
 	}
 	panic("Acquiring connections for " + url + " failed. Shutting down systems.")
-}
-
-func generateClients(connections Connections) clientMap {
-	clientMap := make(map[string](pb.InternalClient))
-	for url, connection := range connections {
-		clientMap[url] = pb.NewInternalClient(connection)
-	}
-	return clientMap
 }
