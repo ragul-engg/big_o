@@ -48,7 +48,7 @@ func main() {
 	setupRoutes(app)
 	grpcServerPort, err := strconv.ParseInt(*portPtr, 10, 32)
 	if err != nil {
-		panic("Unable to start grpc server at: " + string(grpcServerPort))
+		logger.Fatalf("Error parsing port: %v\n", err)
 	}
 
 	go startGrpcServer(strconv.Itoa(int(grpcServerPort + 1000)))
