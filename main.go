@@ -1,64 +1,20 @@
 package main
 
 import (
-	// connectionPool "big_o/connection_pool"
-	"bytes"
 	"encoding/json"
 	"errors"
-	"flag"
 	"io"
 
 	"math"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 	"runtime"
 	"slices"
 	"strconv"
-	"strings"
-	"time"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/klauspost/reedsolomon"
 	logrus "github.com/sirupsen/logrus"
 )
-
-const NUMBER_OF_DATA_SHARDS int = 4
-const NUMBER_OF_PARITY_SHARDS int = 3
-const TOTAL_SHARDS int = NUMBER_OF_DATA_SHARDS + NUMBER_OF_PARITY_SHARDS
-const TOTAL_NODES = TOTAL_SHARDS
-
-const LOCATION_ID_NOT_FOUND = "location id not found"
-const COULD_NOT_RECONSTRUCT_DATA = "could not reconstruct data"
-const MEMORY_FULL = "memory is full."
-
-var portPtr = flag.String("port", "8000", "send port number")
-var updateChannel = make(chan UpdateChannelPayload)
-
-var logger = logrus.New()
-
-type Payload struct {
-	Id               string  `json:"id"`
-	Seismic_activity float32 `json:"seismic_activity"`
-	Temperature_c    float32 `json:"temperature_c"`
-	Radiation_level  float32 `json:"radiation_level"`
-}
-type LocationData struct {
-	data              []byte
-	modificationCount int
-}
-
-type ResponsePayload struct {
-	Payload
-	ModificationCount int `json:"modification_count"`
-}
-
-var dataStore map[string]LocationData = make(map[string]LocationData)
-var currentNodeIp string
-var currentNodeGrpcIp string
-var nodeIps []string
-var grpcIps []string
-var enc, _ = reedsolomon.New(NUMBER_OF_DATA_SHARDS, NUMBER_OF_PARITY_SHARDS, reedsolomon.WithMaxGoroutines(25))
 
 func processPayload(payload []byte) ([][]byte, error) {
 
@@ -78,26 +34,6 @@ func processPayload(payload []byte) ([][]byte, error) {
 	return data, err
 }
 
-func loadEnv() {
-	currentNodeIp = os.Getenv("CURRENT_NODE_IP")
-	allNodeIps := os.Getenv("ALL_NODE_IPS")
-
-	if len(allNodeIps) == 0 || len(currentNodeIp) == 0 {
-		panic("Oh no we are doomed!")
-	}
-	nodeIps = strings.Split(allNodeIps, ",")
-	grpcIps = getGrpcIps(nodeIps)
-
-	logger.Infof("GRPC IPs: %v", grpcIps)
-	grpcIp, err := getGrpcIpFor(currentNodeIp)
-
-	if err != nil {
-		panic("Grpc conversion failed, something wrong.")
-	}
-
-	currentNodeGrpcIp = grpcIp
-	logger.Infof("Loading with current ip: %v . Node ips: %v ", currentNodeIp, nodeIps)
-}
 
 func main() {
 	loadEnv()
@@ -141,47 +77,6 @@ func processUpdateRequest(locationId string, payload []byte) error {
 	// updateDataStore(locationId, yourShare)
 
 	return nil
-}
-
-func makePutRequest(url string, payload []byte) error {
-	logger.Debug("Making request to: ", url)
-	client := http.Client{
-		Timeout: 3 * time.Second,
-	}
-	byteBuffer := bytes.NewBuffer(payload)
-	request, err := http.NewRequest(
-		http.MethodPut,
-		url,
-		byteBuffer,
-	)
-	if err != nil {
-		return err
-	}
-
-	_, err = client.Do(request)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func replicateData(locationId string, encodedPayload [][]byte) ([]byte, error) {
-	var myShare []byte
-	for index, value := range encodedPayload {
-		nodeIp := nodeIps[index]
-		if nodeIp != currentNodeIp {
-			err := makePutRequest(constructInternalUrl(nodeIp, locationId), value)
-			if err != nil {
-				logger.Error("Something went wrong with PUT request: ", err)
-			}
-		} else {
-			logger.Debugln("Taking my share: ", nodeIp)
-			myShare = value
-		}
-	}
-	return myShare, nil
 }
 
 func populateDataChunks(out []byte, chunkSize int, data [][]byte) {
@@ -275,6 +170,3 @@ func reconstruct(data [][]byte) Payload {
 	return payload
 }
 
-func readFlags(portPtr *string) {
-	flag.Parse()
-}
