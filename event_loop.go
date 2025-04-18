@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"sync/atomic"
 	"unsafe"
 )
@@ -54,7 +55,15 @@ func updateDataStore(locationId string, dataShard []byte) {
 }
 
 func allowWrites() bool {
-	if atomic.LoadUintptr(&totalSize) <= BYTES_IN_GB {
+	var datastoreMemoryUsage runtime.MemStats
+
+	runtime.ReadMemStats(&datastoreMemoryUsage)
+
+	logger.Debug("Alloc:", datastoreMemoryUsage.Alloc,
+		"\nTotalAlloc:", datastoreMemoryUsage.TotalAlloc,
+		"\nHeapAlloc:", datastoreMemoryUsage.HeapAlloc)
+
+	if uintptr(datastoreMemoryUsage.TotalAlloc) <= BYTES_IN_GB {
 		return true
 	} else {
 		return false
