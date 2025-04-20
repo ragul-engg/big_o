@@ -66,13 +66,13 @@ func healthCheck(url string) error {
 	defer cancel()
 
 	res, err := client.HealthCheck(ctx, &pb.Empty{})
-	
+
 	if err != nil {
 		logger.Errorln("Error: Health check failed.", err)
 		return err
 	}
 
-	if(res.IsHealthy) {
+	if res.IsHealthy {
 		logger.Debugln("Health check passed for: ", url)
 		return nil
 	} else {

@@ -1,6 +1,5 @@
 package main
 
-
 type Payload struct {
 	Id               string  `json:"id"`
 	Seismic_activity float32 `json:"seismic_activity"`

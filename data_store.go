@@ -56,8 +56,6 @@ func updateDataStore(locationId string, dataShard []byte) {
 }
 
 func allowWrites() bool {
-	var datastoreMemoryUsage runtime.MemStats
-
 	runtime.ReadMemStats(&datastoreMemoryUsage)
 
 	logger.Debug("Alloc:", datastoreMemoryUsage.Alloc,

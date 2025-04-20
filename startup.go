@@ -1,8 +1,9 @@
 package main
+
 import (
+	"flag"
 	"os"
 	"strings"
-	"flag"
 )
 
 func loadEnv() {
@@ -26,7 +27,18 @@ func loadEnv() {
 	logger.Infof("Loading with current ip: %v . Node ips: %v ", currentNodeIp, nodeIps)
 }
 
-
 func readFlags(portPtr *string) {
 	flag.Parse()
+}
+
+func setLoggingToFile() {
+	file, err := os.OpenFile("./logrus_"+*portPtr+".log", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+
+	if err == nil {
+		logger.SetOutput(file)
+	} else {
+		logger.Info("Failed to log to file, using default stderr")
+	}
+
+	defer file.Close()
 }

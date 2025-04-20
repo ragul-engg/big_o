@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-
 	"math"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
 	"slices"
 	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/klauspost/reedsolomon"
 	logrus "github.com/sirupsen/logrus"
@@ -34,13 +34,12 @@ func processPayload(payload []byte) ([][]byte, error) {
 	return data, err
 }
 
-
 func main() {
 	loadEnv()
+	readFlags(portPtr)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	logger.SetLevel(logrus.InfoLevel)
 	go dataStoreWriter()
-	readFlags(portPtr)
 	var port = ":" + *portPtr
 
 	app := fiber.New(fiberConfig)
@@ -169,4 +168,3 @@ func reconstruct(data [][]byte) Payload {
 
 	return payload
 }
-
