@@ -4,6 +4,7 @@ syntax = "proto3";
 option go_package = "google.golang.org/grpc/protobuf_helper";
 service Internal {
   rpc UpsertLocationData(UpsertPayload) returns (Empty) {}
+  rpc HealthCheck(Empty) returns (HealthCheckResponse){}
 }
 
 message UpsertPayload {
@@ -13,4 +14,8 @@ message UpsertPayload {
 
 message Empty {
 
+}
+
+message HealthCheckResponse {
+  bool isHealthy = 1;
 }

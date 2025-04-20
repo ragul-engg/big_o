@@ -17,8 +17,9 @@ Flow:
 */
 const BYTES_IN_GB uintptr = 2_50_00_00_000
 
-var totalSize uintptr
+var dataStore map[string]LocationData = make(map[string]LocationData)
 
+var totalSize uintptr
 type UpdateChannelPayload struct {
 	locationId     string
 	encodedPayload []byte

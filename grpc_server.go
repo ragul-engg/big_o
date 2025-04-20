@@ -25,6 +25,11 @@ func (s *protobufServer) UpsertLocationData(ctx context.Context, req *pb.UpsertP
 	return &pb.Empty{}, nil
 }
 
+func (s *protobufServer) HealthCheck(ctx context.Context, req *pb.Empty) (*pb.HealthCheckResponse, error) {
+	logger.Debugln("Received health check request")
+	return &pb.HealthCheckResponse{IsHealthy: true}, nil
+}
+
 func startGrpcServer(port string) {
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {

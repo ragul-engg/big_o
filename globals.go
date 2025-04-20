@@ -11,7 +11,6 @@ var logger = logrus.New()
 
 
 
-var dataStore map[string]LocationData = make(map[string]LocationData)
 var currentNodeIp string
 var currentNodeGrpcIp string
 var nodeIps []string

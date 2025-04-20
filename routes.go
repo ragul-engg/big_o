@@ -9,6 +9,13 @@ import (
 
 func setupRoutes(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
+		for _, url := range grpcIps {
+			err := healthCheck(url)
+			if err != nil {
+				logger.Errorln("Health check failed for: ", url, " Error: ", err)
+				return c.Status(500).SendString("Health check failed for: " + url)
+			}
+		}
 		return c.SendStatus(200)
 	})
 

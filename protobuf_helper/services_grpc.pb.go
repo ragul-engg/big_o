@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	Internal_UpsertLocationData_FullMethodName = "/Internal/UpsertLocationData"
+	Internal_HealthCheck_FullMethodName        = "/Internal/HealthCheck"
 )
 
 // InternalClient is the client API for Internal service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InternalClient interface {
 	UpsertLocationData(ctx context.Context, in *UpsertPayload, opts ...grpc.CallOption) (*Empty, error)
+	HealthCheck(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HealthCheckResponse, error)
 }
 
 type internalClient struct {
@@ -47,11 +49,22 @@ func (c *internalClient) UpsertLocationData(ctx context.Context, in *UpsertPaylo
 	return out, nil
 }
 
+func (c *internalClient) HealthCheck(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HealthCheckResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HealthCheckResponse)
+	err := c.cc.Invoke(ctx, Internal_HealthCheck_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InternalServer is the server API for Internal service.
 // All implementations must embed UnimplementedInternalServer
 // for forward compatibility.
 type InternalServer interface {
 	UpsertLocationData(context.Context, *UpsertPayload) (*Empty, error)
+	HealthCheck(context.Context, *Empty) (*HealthCheckResponse, error)
 	mustEmbedUnimplementedInternalServer()
 }
 
@@ -64,6 +77,9 @@ type UnimplementedInternalServer struct{}
 
 func (UnimplementedInternalServer) UpsertLocationData(context.Context, *UpsertPayload) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpsertLocationData not implemented")
+}
+func (UnimplementedInternalServer) HealthCheck(context.Context, *Empty) (*HealthCheckResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HealthCheck not implemented")
 }
 func (UnimplementedInternalServer) mustEmbedUnimplementedInternalServer() {}
 func (UnimplementedInternalServer) testEmbeddedByValue()                  {}
@@ -104,6 +120,24 @@ func _Internal_UpsertLocationData_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Internal_HealthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InternalServer).HealthCheck(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Internal_HealthCheck_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InternalServer).HealthCheck(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Internal_ServiceDesc is the grpc.ServiceDesc for Internal service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +148,10 @@ var Internal_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpsertLocationData",
 			Handler:    _Internal_UpsertLocationData_Handler,
+		},
+		{
+			MethodName: "HealthCheck",
+			Handler:    _Internal_HealthCheck_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
