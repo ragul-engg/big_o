@@ -15,3 +15,8 @@ type ResponsePayload struct {
 	Payload
 	ModificationCount int `json:"modification_count"`
 }
+
+type BackgroundSyncPayload struct {
+	locationId     string
+	encodedPayload [][]byte
+}

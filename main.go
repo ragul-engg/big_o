@@ -51,8 +51,20 @@ func main() {
 	}
 
 	go startGrpcServer(strconv.Itoa(int(grpcServerPort + 1000)))
+	go listenBackgroundSyncChannel()
 
 	app.Listen(port)
+}
+
+func getMyShare(encodedPayload [][]byte) ([]byte, error) {
+	for index, value := range encodedPayload {
+		nodeIp := grpcIps[index]
+		if nodeIp == currentNodeGrpcIp {
+			return value, nil
+		}
+
+	}
+	return nil, errors.New("my share not found")
 }
 
 func processUpdateRequest(locationId string, payload []byte) error {
@@ -66,7 +78,7 @@ func processUpdateRequest(locationId string, payload []byte) error {
 	}
 
 	logger.Debug("Full data: ", encodedPayload)
-	yourShare, err := replicateDataGrpc(locationId, encodedPayload)
+	yourShare, err := getMyShare(encodedPayload)
 
 	if err != nil {
 		return err
@@ -74,6 +86,7 @@ func processUpdateRequest(locationId string, payload []byte) error {
 	// do go routine that puts into a channel to update data store, channel takes in update payload
 	updateChannel <- UpdateChannelPayload{locationId: locationId, encodedPayload: yourShare}
 	// updateDataStore(locationId, yourShare)
+	backgroundSyncChannel <- BackgroundSyncPayload{locationId: locationId, encodedPayload: encodedPayload}
 
 	return nil
 }

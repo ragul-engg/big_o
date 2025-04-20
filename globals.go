@@ -10,6 +10,7 @@ import (
 
 var portPtr = flag.String("port", "8000", "send port number")
 var updateChannel = make(chan UpdateChannelPayload)
+var backgroundSyncChannel = make(chan BackgroundSyncPayload)
 
 var logger = logrus.New()
 

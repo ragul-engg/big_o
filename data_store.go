@@ -20,6 +20,7 @@ const BYTES_IN_GB uint64 = 2500000000
 var dataStore map[string]LocationData = make(map[string]LocationData)
 
 var totalSize uintptr
+
 type UpdateChannelPayload struct {
 	locationId     string
 	encodedPayload []byte
@@ -39,6 +40,18 @@ func dataStoreWriter() {
 			}
 			logger.Debugln("Starting update internally: ", val.locationId)
 			updateDataStore(val.locationId, val.encodedPayload)
+		}
+	}
+}
+
+func listenBackgroundSyncChannel() {
+	for {
+		select {
+		case val, ok := <-backgroundSyncChannel:
+			if !ok {
+				return
+			}
+			replicateDataGrpc(val.locationId, val.encodedPayload)
 		}
 	}
 }
