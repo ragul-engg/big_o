@@ -15,7 +15,7 @@ Flow:
 		Request comes -> block the channel for the go routine handling that API response till we fetch and decode for that,
 		perform gets from all across the other pods and wait till we get the data through the shared channel
 */
-const BYTES_IN_GB uintptr = 2_50_00_00_000
+const BYTES_IN_GB uint64 = 2500000000
 
 var dataStore map[string]LocationData = make(map[string]LocationData)
 
@@ -64,7 +64,7 @@ func allowWrites() bool {
 		"\nTotalAlloc:", datastoreMemoryUsage.TotalAlloc,
 		"\nHeapAlloc:", datastoreMemoryUsage.HeapAlloc)
 
-	if uintptr(datastoreMemoryUsage.TotalAlloc) <= BYTES_IN_GB {
+	if datastoreMemoryUsage.Alloc <= BYTES_IN_GB {
 		return true
 	} else {
 		return false
