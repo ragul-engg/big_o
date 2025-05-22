@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"strings"
 )
@@ -9,6 +8,7 @@ import (
 func loadEnv() {
 	currentNodeIp = os.Getenv("CURRENT_NODE_IP")
 	allNodeIps := os.Getenv("ALL_NODE_IPS")
+	portNum = os.Getenv("PORT")
 
 	if len(allNodeIps) == 0 || len(currentNodeIp) == 0 {
 		panic("Oh no we are doomed!")
@@ -27,12 +27,8 @@ func loadEnv() {
 	logger.Infof("Loading with current ip: %v . Node ips: %v ", currentNodeIp, nodeIps)
 }
 
-func readFlags(portPtr *string) {
-	flag.Parse()
-}
-
 func setLoggingToFile() {
-	file, err := os.OpenFile("./logrus_"+*portPtr+".log", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	file, err := os.OpenFile("./logrus_"+portNum+".log", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 
 	if err == nil {
 		logger.SetOutput(file)

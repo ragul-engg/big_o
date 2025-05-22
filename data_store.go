@@ -20,6 +20,7 @@ const BYTES_IN_GB uint64 = 2500000000
 var dataStore map[string]LocationData = make(map[string]LocationData)
 
 var totalSize uintptr
+
 type UpdateChannelPayload struct {
 	locationId     string
 	encodedPayload []byte

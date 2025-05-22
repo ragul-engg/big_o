@@ -6,7 +6,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-PORT=$1
+export PORT=$1
 
 # Set the CURRENT_NODE_IP dynamically based on the provided port
 export CURRENT_NODE_IP="http://localhost:$PORT"

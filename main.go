@@ -36,16 +36,15 @@ func processPayload(payload []byte) ([][]byte, error) {
 
 func main() {
 	loadEnv()
-	readFlags(portPtr)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	logger.SetLevel(logrus.InfoLevel)
 	go dataStoreWriter()
-	var port = ":" + *portPtr
+	var port = ":" + portNum
 
 	app := fiber.New(fiberConfig)
 
 	setupRoutes(app)
-	grpcServerPort, err := strconv.ParseInt(*portPtr, 10, 32)
+	grpcServerPort, err := strconv.ParseInt(portNum, 10, 32)
 	if err != nil {
 		logger.Fatalf("Error parsing port: %v\n", err)
 	}

@@ -1,14 +1,13 @@
 package main
 
 import (
-	"flag"
 	"runtime"
 
 	"github.com/klauspost/reedsolomon"
 	"github.com/sirupsen/logrus"
 )
 
-var portPtr = flag.String("port", "8000", "send port number")
+var portNum string
 var updateChannel = make(chan UpdateChannelPayload)
 
 var logger = logrus.New()
